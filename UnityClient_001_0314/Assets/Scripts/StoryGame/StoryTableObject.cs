@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace STORTGAME
+namespace STORYGAME
 {
     [CreateAssetMenu(fileName = "NewStory", menuName = "ScriptableObject/StoryTableObject")]
     public class StoryTableObject : ScriptableObject
