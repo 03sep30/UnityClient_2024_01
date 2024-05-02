@@ -21,32 +21,14 @@ namespace STORYGAME
             {
                 gameSystem.ResetStoryModels();
             }
-
-            if(GUILayout.Button("Assing Text Component by Name"))
-            {
-                //오브젝트 이름으로 텍스트 컴포넌트 찾기
-                GameObject textObject = GameObject.Find("StoryTextUI");
-                if(textObject != null)
-                {
-                    Text textComponent = textObject.GetComponent<Text>();
-                    if(textComponent != null)
-                    {
-                        //text component 할당
-                        gameSystem.textComponent = textComponent;
-                    }
-                }
-            }
         }
     }
 #endif
 
     public class GameSystem : MonoBehaviour
     {
-        public static GameSystem Instance;
+        public static GameSystem Instance;      //Secne 내부에서만 존재
 
-        public float delay = 0.1f;
-        private string currentText = "";
-        public Text textComponent;
 
         private void Awake()
         {
@@ -60,47 +42,114 @@ namespace STORYGAME
             ENDMODE
         }
 
-        public GAMESTATE state;
+        public GAMESTATE currentState;
+        public Stats stats;
+        public StoryModel[] storyModels;
+        public int currentStoryIndex = 0;
 
-        public StoryTableObject[] storyModels;
-        public StoryTableObject currentModels;
-
-        private void Start()
+        public void ChangeState(GAMESTATE temp)
         {
-            currentModels = FindStoryModel(1);
-            StartCoroutine(ShowText());
+            currentState = temp;
+
+            if(currentState == GAMESTATE.STORYSHOW)
+            {
+               StoryShow(currentStoryIndex);
+            }
+        }
+        public void StoryShow(int number)
+        {
+            StoryModel tempStoryModels = FindStoryModel(number);
+
+            //StorySystem.Instance.currentStoryModel = tempStoryModels;
+            //StorySystem.instace.CoShowText();
         }
 
-        StoryTableObject FindStoryModel(int number)
+        public void ApplyChoice(StoryModel.Result result)
         {
-            StoryTableObject tempStoryModels = null;
+            switch(result.resultType)
+            {
+                case StoryModel.Result.ResultType.ChangeHp:
+
+                    //GameUI.Instance.UpdateHpUI()      //나중에 추가
+                    ChangeStats(result);
+                    break;
+
+                case StoryModel.Result.ResultType.GoToNextStory:
+                    currentStoryIndex = result.value;       //다음 이동 스토리 번호를 받아와서 실행
+                    ChangeState(GAMESTATE.STORYSHOW);
+                    ChangeStats(result);
+                    break;
+
+                case StoryModel.Result.ResultType.GoToRandomStory:
+                    RandomStory();
+                    ChangeState(GAMESTATE.STORYSHOW);
+                    ChangeStats(result);
+                    break;
+
+                default:
+                    Debug.LogError("Unknown effect Type");
+                    break;
+            }
+        }
+        public void ChangeStats(StoryModel.Result result)  // 상태 변경 함수
+        {
+            // 기본 상태
+            if (result.stats.hpPoint > 0) stats.hpPoint += result.stats.hpPoint;
+            if (result.stats.spPoint > 0) stats.spPoint += result.stats.spPoint;
+            //현재 상태
+            if (result.stats.currentHpPoint > 0) stats.currentHpPoint += result.stats.currentHpPoint;
+            if (result.stats.currentSpPoint > 0) stats.currentSpPoint += result.stats.currentSpPoint;
+            if (result.stats.currentXpPoint > 0) stats.currentXpPoint += result.stats.currentXpPoint;
+            // 능력치 상태
+            if (result.stats.strength > 0) stats.strength += result.stats.strength;
+            if (result.stats.dexterity > 0) stats.dexterity += result.stats.dexterity;
+            if (result.stats.consitiution > 0) stats.consitiution += result.stats.consitiution;
+            if (result.stats.wisdom > 0) stats.wisdom += result.stats.wisdom;
+            if (result.stats.Intelligence > 0) stats.Intelligence += result.stats.Intelligence;
+            if (result.stats.charisma > 0) stats.charisma += result.stats.charisma;
+
+        }
+        StoryModel RandomStory()
+        {
+            StoryModel tempStoryModels = null;
+
+            List<StoryModel> StoryModelList = new List<StoryModel>();
+
             for(int i = 0; i < storyModels.Length; i++)
             {
-                if (storyModels[i].storyNumber == number)
+                if(storyModels[i].storyType == StoryModel.STORYTYPE.MAIN)
                 {
-                    tempStoryModels = storyModels[i];
-                    break;
+                    StoryModelList.Add(storyModels[i]);
                 }
             }
+            tempStoryModels = StoryModelList[Random.Range(0, StoryModelList.Count)];
+            currentStoryIndex = tempStoryModels.storyNumber;
+            Debug.Log("currentStoryIndex" + currentStoryIndex);
+
             return tempStoryModels;
         }
 
-        IEnumerator ShowText()
+
+        StoryModel FindStoryModel(int number)
         {
-            for(int i = 0; i<= currentModels.storyText.Length; i++)
+            StoryModel tempStoryModels = null;
+
+            for (int i = 0; i < storyModels.Length; i++)
             {
-                currentText = currentModels.storyText.Substring(0, i);
-                textComponent.text = currentText;
-                yield return new WaitForSeconds(delay);
+                if(storyModels[i].storyNumber == number)
+                {
+                   tempStoryModels = storyModels[i];
+                   break;
+                }
             }
-            yield return new WaitForSeconds(delay);
+            return tempStoryModels;
         }
 
 #if     UNITY_EDITOR
         [ContextMenu("Reset Story Models")]
         public void ResetStoryModels()
         {
-            storyModels = Resources.LoadAll<StoryTableObject>("");
+            storyModels = Resources.LoadAll<StoryModel>("");
             //Resource 폴더 아래 모든 StoryModel 불러오기
         }
  #endif
